@@ -1,0 +1,553 @@
+<html><head><base href="tetris.copm"><style>
+:root {
+    --grid-size: 30px;
+}
+body {
+    background: #111;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Added animated background */
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        linear-gradient(45deg, 
+            rgba(0,0,0,0.92) 25%, 
+            rgba(20,20,40,0.92) 50%, 
+            rgba(0,0,0,0.92) 75%);
+    background-size: 400% 400%;
+    z-index: -1;
+    animation: gradient 15s ease infinite;
+}
+
+@keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.game-container {
+    position: relative;
+    display: flex;
+    gap: 20px;
+    backdrop-filter: blur(5px);
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+#game-board {
+    width: calc(var(--grid-size) * 10);
+    height: calc(var(--grid-size) * 20);
+    border: 2px solid #333;
+    background: rgba(0,0,0,0.8);
+    display: grid;
+    grid-template-columns: repeat(10, var(--grid-size));
+    grid-template-rows: repeat(20, var(--grid-size));
+}
+.cell {
+    border: 1px solid #222;
+}
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+#next-piece {
+    width: calc(var(--grid-size) * 4);
+    height: calc(var(--grid-size) * 4);
+    border: 2px solid #333;
+    background: rgba(0,0,0,0.8);
+    display: grid;
+    grid-template-columns: repeat(4, var(--grid-size));
+    grid-template-rows: repeat(4, var(--grid-size));
+}
+.stats {
+    background: rgba(34,34,34,0.8);
+    padding: 15px;
+    border-radius: 5px;
+    animation: glow 2s ease-in-out infinite;
+}
+.stats h3 {
+    margin: 5px 0;
+    font-size: 1.2em;
+}
+#score {
+    font-size: 1.5em;
+    color: #00ff00;
+    text-shadow: 0 0 10px rgba(0,255,0,0.5);
+    font-weight: bold;
+}
+@keyframes glow {
+    0% { box-shadow: 0 0 5px rgba(0,255,0,0.2); }
+    50% { box-shadow: 0 0 15px rgba(0,255,0,0.4); }
+    100% { box-shadow: 0 0 5px rgba(0,255,0,0.2); }
+}
+
+/* Add score increase animation */
+@keyframes scoreIncrease {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.score-increase {
+    animation: scoreIncrease 0.3s ease-out;
+}
+.controls {
+    background: rgba(34,34,34,0.8);
+    padding: 15px;
+    border-radius: 5px;
+    margin-top: 20px;
+}
+.active {
+    background: cyan;
+}
+.locked {
+    border: 1px solid rgba(255,255,255,0.1);
+}
+.I { background: cyan; }
+.O { background: yellow; }
+.T { background: purple; }
+.S { background: green; }
+.Z { background: red; }
+.J { background: blue; }
+.L { background: orange; }
+
+/* Menu Styles */
+.menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.menu-content {
+    background: rgba(34, 34, 34, 0.95);
+    padding: 40px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+    animation: menuGlow 2s ease-in-out infinite;
+}
+
+.menu-content h1 {
+    color: #00ff00;
+    font-size: 3em;
+    margin-bottom: 30px;
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+.menu-content button {
+    display: block;
+    width: 200px;
+    margin: 15px auto;
+    padding: 12px;
+    background: transparent;
+    border: 2px solid #00ff00;
+    color: #00ff00;
+    font-size: 1.2em;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.menu-content button:hover {
+    background: #00ff00;
+    color: #000;
+    transform: scale(1.05);
+}
+
+@keyframes menuGlow {
+    0% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.2); }
+    50% { box-shadow: 0 0 40px rgba(0, 255, 0, 0.4); }
+    100% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.2); }
+}
+
+.hidden {
+    display: none !important;
+}
+</style>
+</head>
+<body>
+<div id="game-menu" class="menu-overlay">
+    <div class="menu-content">
+        <h1>TETRIS</h1>
+        <button id="start-game">Start Game</button>
+        <button id="show-controls">Controls</button>
+        <button id="show-highscores">High Scores</button>
+    </div>
+</div>
+<div class="game-container">
+    <div id="game-board"></div>
+    <div class="sidebar">
+        <div>
+            <h3>Next Piece</h3>
+            <div id="next-piece"></div>
+        </div>
+        <div class="stats">
+            <h3>Score: <span id="score">0</span></h3>
+            <h3>Level: <span id="level">1</span></h3>
+            <h3>Lines: <span id="lines">0</span></h3>
+        </div>
+        <div class="controls">
+            <h3>Controls</h3>
+            <p>← → : Move left/right</p>
+            <p>↑ : Rotate</p>
+            <p>↓ : Move down</p>
+            <p>Space : Hard drop</p>
+        </div>
+    </div>
+</div>
+
+<script>
+const SHAPES = {
+    I: [[1,1,1,1]],
+    O: [[1,1],[1,1]],
+    T: [[0,1,0],[1,1,1]],
+    S: [[0,1,1],[1,1,0]],
+    Z: [[1,1,0],[0,1,1]],
+    J: [[1,0,0],[1,1,1]],
+    L: [[0,0,1],[1,1,1]]
+};
+
+class Tetris {
+    constructor() {
+        this.board = Array(20).fill().map(() => Array(10).fill(0));
+        this.score = 0;
+        this.level = 1;
+        this.lines = 0;
+        this.gameOver = false;
+        this.speed = 1000;
+        this.paused = false;
+        
+        this.currentPiece = null;
+        this.currentPosition = {x: 0, y: 0};
+        this.nextPiece = this.getRandomPiece();
+        
+        this.setupMenu();
+    }
+
+    setupMenu() {
+        const menuOverlay = document.getElementById('game-menu');
+        const startButton = document.getElementById('start-game');
+        const controlsButton = document.getElementById('show-controls');
+        const highScoresButton = document.getElementById('show-highscores');
+
+        startButton.addEventListener('click', () => {
+            menuOverlay.classList.add('hidden');
+            this.init();
+        });
+
+        controlsButton.addEventListener('click', () => {
+            alert(
+                'Controls:\n\n' +
+                '← → : Move left/right\n' +
+                '↑ : Rotate\n' +
+                '↓ : Move down\n' +
+                'Space : Hard drop\n' +
+                'P : Pause game'
+            );
+        });
+
+        highScoresButton.addEventListener('click', () => {
+            // Get high scores from localStorage
+            const highScores = JSON.parse(localStorage.getItem('tetrisHighScores')) || [];
+            const scoresText = highScores.length > 0 
+                ? highScores.map((score, i) => `${i + 1}. ${score}`).join('\n')
+                : 'No high scores yet!';
+            alert('High Scores:\n\n' + scoresText);
+        });
+
+        // Add pause functionality
+        document.addEventListener('keydown', (e) => {
+            if(e.key.toLowerCase() === 'p' && !this.gameOver) {
+                this.togglePause();
+            }
+        });
+    }
+
+    togglePause() {
+        this.paused = !this.paused;
+        if(this.paused) {
+            document.getElementById('game-menu').classList.remove('hidden');
+        } else {
+            document.getElementById('game-menu').classList.add('hidden');
+            this.gameLoop();
+        }
+    }
+
+    init() {
+        this.createBoard();
+        this.createNextPieceDisplay();
+        this.bindControls();
+        this.spawnPiece();
+        this.gameLoop();
+    }
+    
+    createBoard() {
+        const board = document.getElementById('game-board');
+        for(let i = 0; i < 200; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            board.appendChild(cell);
+        }
+    }
+    
+    createNextPieceDisplay() {
+        const display = document.getElementById('next-piece');
+        for(let i = 0; i < 16; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            display.appendChild(cell);
+        }
+    }
+    
+    bindControls() {
+        document.addEventListener('keydown', (e) => {
+            if(this.gameOver || this.paused) return;
+            
+            switch(e.key) {
+                case 'ArrowLeft':
+                    this.moveLeft();
+                    break;
+                case 'ArrowRight':
+                    this.moveRight();
+                    break;
+                case 'ArrowDown':
+                    this.moveDown();
+                    break;
+                case 'ArrowUp':
+                    this.rotate();
+                    break;
+                case ' ':
+                    this.hardDrop();
+                    break;
+            }
+        });
+    }
+    
+    getRandomPiece() {
+        const pieces = Object.keys(SHAPES);
+        const piece = pieces[Math.floor(Math.random() * pieces.length)];
+        return {
+            shape: SHAPES[piece],
+            type: piece
+        };
+    }
+    
+    spawnPiece() {
+        this.currentPiece = this.nextPiece;
+        this.nextPiece = this.getRandomPiece();
+        this.currentPosition = {
+            x: Math.floor((10 - this.currentPiece.shape[0].length) / 2),
+            y: 0
+        };
+        
+        if(this.checkCollision()) {
+            this.gameOver = true;
+            // Save score if it's a high score
+            const highScores = JSON.parse(localStorage.getItem('tetrisHighScores')) || [];
+            highScores.push(this.score);
+            highScores.sort((a, b) => b - a);
+            highScores.splice(5); // Keep only top 5 scores
+            localStorage.setItem('tetrisHighScores', JSON.stringify(highScores));
+            
+            alert(`Game Over! Final Score: ${this.score}`);
+            document.getElementById('game-menu').classList.remove('hidden');
+            return;
+        }
+        
+        this.updateDisplay();
+        this.updateNextPieceDisplay();
+    }
+    
+    checkCollision() {
+        return this.currentPiece.shape.some((row, y) => 
+            row.some((cell, x) => {
+                if(!cell) return false;
+                const boardX = this.currentPosition.x + x;
+                const boardY = this.currentPosition.y + y;
+                return boardY >= 20 || boardX < 0 || boardX >= 10 || 
+                       (boardY >= 0 && this.board[boardY][boardX]);
+            })
+        );
+    }
+    
+    moveLeft() {
+        this.currentPosition.x--;
+        if(this.checkCollision()) {
+            this.currentPosition.x++;
+        } else {
+            this.updateDisplay();
+        }
+    }
+    
+    moveRight() {
+        this.currentPosition.x++;
+        if(this.checkCollision()) {
+            this.currentPosition.x--;
+        } else {
+            this.updateDisplay();
+        }
+    }
+    
+    moveDown() {
+        this.currentPosition.y++;
+        if(this.checkCollision()) {
+            this.currentPosition.y--;
+            this.lockPiece();
+            this.clearLines();
+            this.spawnPiece();
+        } else {
+            this.updateDisplay();
+        }
+    }
+    
+    hardDrop() {
+        while(!this.checkCollision()) {
+            this.currentPosition.y++;
+        }
+        this.currentPosition.y--;
+        this.lockPiece();
+        this.clearLines();
+        this.spawnPiece();
+    }
+    
+    rotate() {
+        const oldShape = this.currentPiece.shape;
+        this.currentPiece.shape = oldShape[0].map((_, i) =>
+            oldShape.map(row => row[i]).reverse()
+        );
+        
+        if(this.checkCollision()) {
+            this.currentPiece.shape = oldShape;
+        } else {
+            this.updateDisplay();
+        }
+    }
+    
+    lockPiece() {
+        this.currentPiece.shape.forEach((row, y) => {
+            row.forEach((cell, x) => {
+                if(cell) {
+                    const boardY = this.currentPosition.y + y;
+                    const boardX = this.currentPosition.x + x;
+                    if(boardY >= 0) {
+                        this.board[boardY][boardX] = this.currentPiece.type;
+                    }
+                }
+            });
+        });
+    }
+    
+    clearLines() {
+        let linesCleared = 0;
+        
+        for(let y = this.board.length - 1; y >= 0;) {
+            if(this.board[y].every(cell => cell)) {
+                this.board.splice(y, 1);
+                this.board.unshift(Array(10).fill(0));
+                linesCleared++;
+            } else {
+                y--;
+            }
+        }
+        
+        if(linesCleared) {
+            this.lines += linesCleared;
+            this.score += linesCleared * 100 * this.level;
+            this.level = Math.floor(this.lines / 10) + 1;
+            this.speed = Math.max(100, 1000 - (this.level - 1) * 100);
+            
+            document.getElementById('score').textContent = this.score;
+            document.getElementById('level').textContent = this.level;
+            document.getElementById('lines').textContent = this.lines;
+
+            // Add animation when score changes
+            const scoreElement = document.getElementById('score');
+            scoreElement.classList.remove('score-increase');
+            void scoreElement.offsetWidth; // Trigger reflow
+            scoreElement.classList.add('score-increase');
+        }
+    }
+    
+    updateDisplay() {
+        const cells = document.getElementById('game-board').children;
+        
+        // Clear board
+        for(let y = 0; y < 20; y++) {
+            for(let x = 0; x < 10; x++) {
+                const cell = cells[y * 10 + x];
+                cell.className = 'cell';
+                if(this.board[y][x]) {
+                    cell.classList.add(this.board[y][x], 'locked');
+                }
+            }
+        }
+        
+        // Draw current piece
+        this.currentPiece.shape.forEach((row, y) => {
+            row.forEach((cell, x) => {
+                if(cell) {
+                    const boardY = this.currentPosition.y + y;
+                    const boardX = this.currentPosition.x + x;
+                    if(boardY >= 0 && boardY < 20 && boardX >= 0 && boardX < 10) {
+                        cells[boardY * 10 + boardX].classList.add(this.currentPiece.type);
+                    }
+                }
+            });
+        });
+    }
+    
+    updateNextPieceDisplay() {
+        const cells = document.getElementById('next-piece').children;
+        
+        // Clear display
+        Array.from(cells).forEach(cell => cell.className = 'cell');
+        
+        // Center the piece in the display
+        const offsetX = Math.floor((4 - this.nextPiece.shape[0].length) / 2);
+        const offsetY = Math.floor((4 - this.nextPiece.shape.length) / 2);
+        
+        this.nextPiece.shape.forEach((row, y) => {
+            row.forEach((cell, x) => {
+                if(cell) {
+                    cells[(y + offsetY) * 4 + (x + offsetX)].classList.add(this.nextPiece.type);
+                }
+            });
+        });
+    }
+    
+    gameLoop() {
+        if(!this.gameOver && !this.paused) {
+            this.moveDown();
+            setTimeout(() => this.gameLoop(), this.speed);
+        }
+    }
+}
+
+// Start the game when the page loads
+window.onload = () => {
+    new Tetris();
+};
+</script>
+</body></html>
